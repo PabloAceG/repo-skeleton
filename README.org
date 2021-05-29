@@ -1,0 +1,6 @@
+#+TITLE: skeleton
+
+* Introduction
+
+This repository provides tools to create new repositories integrating
+tools such as Dependabot, hooks, and other functionalities.
