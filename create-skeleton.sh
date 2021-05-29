@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+#set -euo pipefail
 
 #################################################################################
 #Script Name    :create-skeleton.sh
@@ -13,11 +13,13 @@ set -euo pipefail
 # Defaults
 REPO_NAME=""
 REPO_OWNER=""
+ACCESS_TOKEN=""
 LICENSE_NAME=""
 TECHNOLOGIES=[]
 DEPENDABOT=false    # Don't activate Dependabot.
 FORCE_PR=false      # Don't for PRs for contributions.
 PUSH=true           # Push to remote repository.
+PRIVATE=false       # Public remote repository.
 FILE=""
 
 # Urls
@@ -36,6 +38,9 @@ function help() {
   echo "    -o, --owner <repository-owner>"
   echo "        Mandatory. GitHub owner of the repository."
   echo "        NOTE: Must have permissions to create the repository for this owner."
+  echo "    -t, --token <token>"
+  echo "        Mandatory (unless -r/--no-push-remote). GitHub authentication token for specified user/organization."
+  echo "        NOTE: Should have permissions to create a repository."
   echo "    -l, --license <license-name>"
   echo "        Optional. Select license for the repository."
   echo "        NOTE: If no license selected, unlicense will be used."
@@ -49,6 +54,9 @@ function help() {
   echo "        Optional. Push created skeleton to remote repository."
   echo "        NOTE: It only creates the repository. If the repository is already created, no changes are staged."
   echo "        NOTE: Pushes to remote by defualt."
+  echo "    -v, --private"
+  echo "        Optional. Private visibility of the repository. If not specified, repository is public."
+  echo "        NOTE: Only necessary when repository is created remotely (default unless -r/--no-push-remote)."
   echo "    -f, --file"
   echo "        Optional. File configuration of this script."
   echo "EXAMPLES"
@@ -81,6 +89,10 @@ function get_parameters() {
         shift
         REPO_OWNER=$1
       ;;
+      --token | -t)
+        shift
+        ACCESS_TOKEN=$1
+      ;;
       --license | -l)
         shift
         LICENSE_NAME=$1
@@ -96,6 +108,9 @@ function get_parameters() {
       ;;
       --no-push-remote | -r)
         PUSH=false
+      ;;
+      --private | -v)
+        PRIVATE=true
       ;;
       --file | -f)
         shift
@@ -126,15 +141,18 @@ function get_parameters() {
     source "$FILE"
     REPO_NAME="$REPO"
     REPO_OWNER="$OWNER"
+    ACCESS_TOKEN="$TOKEN"
     LICENSE_NAME="$LICENSE"
     TECHNOLOGIES="$TECHS"
     FORCE_PR="$PR"
     PUSH="$REMOTE"
+    PRIVATE="$PRIVATE"
   fi
 
   # Check for mandatory fields
   [ -z "$REPO_NAME" ] && echo "[ERROR]: --name option is mandatory. See --help for more information."
   [ -z "$REPO_OWNER" ] && echo "[ERROR]: --owner argument is mandatory. See --help for more information."
+  [ -z "$ACCESS_TOKEN" ] && "$PUSH" && echo "[ERROR]: --token argument is mandatory. See --help for more information."
 
   echo "[INFO]: Parameters read."
 }
@@ -195,12 +213,27 @@ function create_repo() {
     exit  1
   fi
 
+
+  # Create local repository
   mkdir "$REPO_NAME"
   cd "$REPO_NAME"
   init_files
   git init
-  git add README.md
+  git add README.md LICENSE
   git commit -m "First commit"
+  # Create remote repository
+  # BUG: Does not check if repo already exists
+  # BUG: Visibility does not seem to work
+  if $PUSH
+  then
+    curl -X POST \
+         -H "Accept: application/vnd.github.v3+json" \
+         -u "${REPO_OWNER}:${ACCESS_TOKEN}" \
+         "https://api.github.com/user/repos" \
+         -d "{\"name\":\"${REPO_NAME}\", \"private\": \"${PRIVATE}\"}"
+    git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}"
+    git push --set-upstream origin master
+  fi
 }
 
 create_repo "$@"
