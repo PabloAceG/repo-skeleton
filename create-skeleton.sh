@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#set -euo pipefail
+set -euo pipefail
 
 #################################################################################
 #Script Name    :create-skeleton.sh
@@ -177,24 +177,24 @@ function check_dependencies() {
 }
 
 function init_files() {
-    echo "Creating initial commit..."
-    # Create README file
-    echo "$REPO_NAME" > README.md
-    # Create license
-    if [ -z $LICENSE_NAME ]
-    then
-      echo "[WARNING]: No license specified, using unlicense."
-      echo "[DISCLAIMER]: You should choose a LICENSE that suits the purpose of your project."
-      echo "[DISCLAIMER]: You can see the available licenses in:"
-      echo "https://github.com/licenses/license-templates"
-      LICENSE_NAME=unlicense
-    fi
-    curl -L "${LICENSE_URL}${LICENSE_NAME}.txt" > LICENSE
-    sed -i                                        \
-        -e "s/{{ year }}/$(date +"%Y")/g"         \
-        -e "s/{{ organization }}/${REPO_OWNER}/g" \
-        -e "s/{{ project }}/${REPO_NAME}/g"       \
-        LICENSE
+  echo "Creating initial commit..."
+  # Create README file
+  echo "$REPO_NAME" > README.md
+  # Create license
+  if [ -z $LICENSE_NAME ]
+  then
+    echo "[WARNING]: No license specified, using unlicense."
+    echo "[DISCLAIMER]: You should choose a LICENSE that suits the purpose of your project."
+    echo "[DISCLAIMER]: You can see the available licenses in:"
+    echo "https://github.com/licenses/license-templates"
+    LICENSE_NAME=unlicense
+  fi
+  curl -L "${LICENSE_URL}${LICENSE_NAME}.txt" > LICENSE
+  sed -i                                        \
+      -e "s/{{ year }}/$(date +"%Y")/g"         \
+      -e "s/{{ organization }}/${REPO_OWNER}/g" \
+      -e "s/{{ project }}/${REPO_NAME}/g"       \
+      LICENSE
 }
 
 function create_repo() {
@@ -202,7 +202,6 @@ function create_repo() {
 
   # Filter parameters
   get_parameters "$@"
-
   # See if all dependencies are installed
   check_dependencies
 
@@ -212,7 +211,6 @@ function create_repo() {
     echo "[ERROR]: There is a already folder with your repository name. It won't be created."
     exit  1
   fi
-
 
   # Create local repository
   mkdir "$REPO_NAME"
