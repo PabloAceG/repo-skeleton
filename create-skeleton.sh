@@ -164,14 +164,18 @@ function create_repo() {
     # See if all dependencies are installed
     check_dependencies
 
-    # BUG: Repo might exist
     # Create initial commit
-    #mkdir "$REPO_NAME"
-    #cd "$REPO_NAME"
-    #echo "$REPO_NAME" > README.md
-    #git init
-    #git add README.md
-    #git commit -m "First commit"
+    if [ -e "$REPO_NAME" ]
+    then
+      echo "[ERROR]: There is a already folder with your repository name. It won't be created."
+      exit  1
+    fi
+    mkdir "$REPO_NAME"
+    cd "$REPO_NAME"
+    echo "$REPO_NAME" > README.md
+    git init
+    git add README.md
+    git commit -m "First commit"
 }
 
 create_repo "$@"
