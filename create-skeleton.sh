@@ -21,7 +21,7 @@ PUSH=true           # Push to remote repository.
 FILE=""
 
 # Urls
-LICENSE_URL="https://github.com/licenses/license-templates/tree/master/templates/"
+LICENSE_URL="https://raw.githubusercontent.com/licenses/license-templates/master/templates/"
 
 function help() {
   echo "NAME"
@@ -34,12 +34,13 @@ function help() {
   echo "    -n, --name <repository-name>"
   echo "        Mandatory. Name of the repository."
   echo "    -o, --owner <repository-owner>"
-  echo "        Mandatory (only if pushing to remote is active). GitHub owner of the repository."
+  echo "        Mandatory. GitHub owner of the repository."
   echo "        NOTE: Must have permissions to create the repository for this owner."
   echo "    -l, --license <license-name>"
   echo "        Optional. Select license for the repository."
+  echo "        NOTE: If no license selected, unlicense will be used."
   echo "        NOTE: Look at the following repository to choose the best option: "
-  echo "        $LICENSE_URL"
+  echo "        https://github.com/licenses/license-templates"
   echo "    -d, --activate-dependabot"
   echo "        Optional. Activate Dependabot dependency analysis."
   echo "    -p, --force-pr-contribution"
@@ -66,7 +67,6 @@ function get_parameters() {
   if [ "$#" -eq 0 ]
   then
     echo "[WARNING]: You are executing this command without options. Some of them are mandatory."
-    echo
     help
   fi
 
@@ -98,8 +98,8 @@ function get_parameters() {
         PUSH=false
       ;;
       --file | -f)
-          shift
-          FILE=$1
+        shift
+        FILE=$1
       ;;
       --help | -h)
         help
@@ -112,38 +112,36 @@ function get_parameters() {
     shift # Iterate to next parameter
   done
 
-  # Check for mandatory fields
-  if [ -z "$FILE" ]
+  # Use configuration file
+  if [ ! -z "$FILE" ]
   then
-    [ -z "$REPO_NAME" ] && echo "[ERROR]: --name option is mandatory. See --help for more information."
-    "$PUSH" && [ -z "$REPO_OWNER" ] && echo "[ERROR]: The skeleton is going to be pushed to a remote repository. Needs an --owner to continue."
-    [ ! -z "$REPO_OWNER" ] && ! "$PUSH" && echo "[WARNING]: The repository skeleton won't be pushed to remote repository. --owner will be ignored."
-  else
-      [ ! -z "$REPO_NAME" ] && echo "[WARNING]: Used configuration file instead. --name/-n will be ignored."
-      [ ! -z "$REPO_OWNER" ] && echo "[WARNING]: Used configuration file instead. --owner/-o will be ignored."
-      [ ! -z "$LICENSE_NAME" ] && echo "[WARNING]: Used configuration file instead. --license/-l will be ignored."
-      [ ! -z "$TECHNOLOGIES" ] && echo "[WARNING]: Used configuration file instead. --techs/-t will be ignored."
-      [ ! -z "$DEPENDABOT" ] && echo "[WARNING]: Used configuration file instead. --activate-dependabot/-d will be ignored."
-      [ ! -z "$FORCE_PR" ] && echo "[WARNING]: Used configuration file instead. --force-pr-contribution/-p will be ignored."
-      [ ! -z "$PUSH" ] && echo "[WARNING]: Used configuration file instead. --no-push-remote/-r will be ignored."
-      # Check for file existance
-      if [ ! -e "$FILE" ]
-      then
-        echo "[ERROR]: The specified configuration file does not exist. Check if the path is correct."
-        exit 1
-      fi
-      # Get parameters from configuration file
-      source "$FILE"
-      REPO_NAME="$REPO"
-      REPO_OWNER="$OWNER"
-      LICENSE_NAME="$LICENSE"
-      TECHNOLOGIES="$TECHS"
-      FORCE_PR="$PR"
-      PUSH="$REMOTE"
+    echo "[WARNING]: Using configuration file. The rest of the arguments will be ignored."
+    # Check for file existance
+    if [ ! -e "$FILE" ]
+    then
+      echo "[ERROR]: The specified configuration file does not exist. Check if the path is correct."
+      exit 1
+    fi
+    # Get parameters from configuration file
+    source "$FILE"
+    REPO_NAME="$REPO"
+    REPO_OWNER="$OWNER"
+    LICENSE_NAME="$LICENSE"
+    TECHNOLOGIES="$TECHS"
+    FORCE_PR="$PR"
+    PUSH="$REMOTE"
   fi
+
+  # Check for mandatory fields
+  [ -z "$REPO_NAME" ] && echo "[ERROR]: --name option is mandatory. See --help for more information."
+  [ -z "$REPO_OWNER" ] && echo "[ERROR]: --owner argument is mandatory. See --help for more information."
+
+  echo "[INFO]: Parameters read."
 }
 
 function check_dependencies() {
+  echo "[INFO]: Checking dependecies..."
+
   if [[ ! $(which git) ]]
   then
     echo "[ERROR]: git is a dependency for this script. Install it before continuing."
@@ -156,26 +154,53 @@ function check_dependencies() {
   fi
 
   # TODO: check technologies dependencies
+
+  echo "[INFO]: All dependencies are correct."
+}
+
+function init_files() {
+    echo "Creating initial commit..."
+    # Create README file
+    echo "$REPO_NAME" > README.md
+    # Create license
+    if [ -z $LICENSE_NAME ]
+    then
+        echo "[WARNING]: No license specified, using unlicense."
+        echo "[DISCLAIMER]: You should choose a LICENSE that suits the purpose of your project."
+        echo "[DISCLAIMER]: You can see the available licenses in:"
+        echo "https://github.com/licenses/license-templates"
+      LICENSE_NAME=unlicense
+    fi
+    curl -L "${LICENSE_URL}${LICENSE_NAME}.txt" > LICENSE
+    sed -i                                        \
+        -e "s/{{ year }}/$(date +"%Y")/g"         \
+        -e "s/{{ organization }}/${REPO_OWNER}/g" \
+        -e "s/{{ project }}/${REPO_NAME}/g"       \
+        LICENSE
 }
 
 function create_repo() {
-    # Filter parameters
-    get_parameters "$@"
-    # See if all dependencies are installed
-    check_dependencies
+  echo "[INFO]: Starting execution..."
 
-    # Create initial commit
-    if [ -e "$REPO_NAME" ]
-    then
-      echo "[ERROR]: There is a already folder with your repository name. It won't be created."
-      exit  1
-    fi
-    mkdir "$REPO_NAME"
-    cd "$REPO_NAME"
-    echo "$REPO_NAME" > README.md
-    git init
-    git add README.md
-    git commit -m "First commit"
+  # Filter parameters
+  get_parameters "$@"
+
+  # See if all dependencies are installed
+  check_dependencies
+
+  # Create initial commit
+  if [ -e "$REPO_NAME" ]
+  then
+    echo "[ERROR]: There is a already folder with your repository name. It won't be created."
+    exit  1
+  fi
+
+  mkdir "$REPO_NAME"
+  cd "$REPO_NAME"
+  init_files
+  git init
+  git add README.md
+  git commit -m "First commit"
 }
 
 create_repo "$@"
