@@ -165,10 +165,10 @@ function init_files() {
     # Create license
     if [ -z $LICENSE_NAME ]
     then
-        echo "[WARNING]: No license specified, using unlicense."
-        echo "[DISCLAIMER]: You should choose a LICENSE that suits the purpose of your project."
-        echo "[DISCLAIMER]: You can see the available licenses in:"
-        echo "https://github.com/licenses/license-templates"
+      echo "[WARNING]: No license specified, using unlicense."
+      echo "[DISCLAIMER]: You should choose a LICENSE that suits the purpose of your project."
+      echo "[DISCLAIMER]: You can see the available licenses in:"
+      echo "https://github.com/licenses/license-templates"
       LICENSE_NAME=unlicense
     fi
     curl -L "${LICENSE_URL}${LICENSE_NAME}.txt" > LICENSE
