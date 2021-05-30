@@ -74,12 +74,20 @@ function help() {
   echo "    -f, --file"
   echo "        Optional. File configuration of this script."
   echo
+  echo "SUPPORTED TECHNOLOGIES"
+  echo "    So far, the following technologies are supported: "
+  echo "    - Rust"
+  echo
   echo "EXAMPLES"
   echo "    create-skeleton.sh --help"
   echo "        To better know how this script works."
   echo
   echo "    create-skeleton.sh --name myRepoSkeleton --owner PabloAceG --token qwertyuiopasdfghjklzxcvbnm"
   echo "        Create a plain repository with no technologies called 'myRepoSkeleton' being the owner 'PabloAceG'."
+  echo
+  echo "SUPPORT THIS SCRIPT"
+  echo "    If you wanto to expand the functionality of this script, you can colaborate opening an Issue with your suggestion or open a Pull request in"
+  echo "    https://github.com/PabloAceG/repo-skeleton"
   echo
   echo "AUTHORS"
   echo "    - Pablo Acereda <p.aceredag@gmail.com>"
@@ -127,8 +135,9 @@ function get_parameters() {
         shift
         LICENSE_NAME=$1
       ;;
-      --techs | -t)
-        echo "On the making"
+      --techs | -x)
+        shift
+        read -a TECHNOLOGIES <<< "$1"
       ;;
       --activate-dependabot | -d)
         DEPENDABOT=true
@@ -173,7 +182,7 @@ function get_parameters() {
     REPO_OWNER="$OWNER"
     ACCESS_TOKEN="$TOKEN"
     LICENSE_NAME="$LICENSE"
-    TECHNOLOGIES="$TECHS"
+    read -a TECHNOLOGIES <<< "$TECHS" # Transform from str to arr
     FORCE_PR="$PR"
     PUSH="$REMOTE"
     PRIVATE="$PRIVATE"
@@ -187,22 +196,38 @@ function get_parameters() {
   echo "[INFO]: Parameters read."
 }
 
+# Check for a package being installed in the system.
+function is_installed() {
+  if [[ ! $(which $1) ]]
+  then
+    echo "[ERROR]: $1 $2"
+    exit 1
+  fi
+}
+
 # Check dependencies necessary to execute the script.
 function check_dependencies() {
   echo "[INFO]: Checking dependecies..."
 
-  if [[ ! $(which git) ]]
-  then
-    echo "[ERROR]: git is a dependency for this script. Install it before continuing."
-    exit 1
-  fi
+  error_msg1="is a dependency for this script. Please install it before continuing."
+  error_msg2="is necessary to build the skeleton of the repository. Please install it before continuing."
 
-  if [[ ! $(which curl) ]]
-  then
-    echo "[ERROR]: curl is a dependency for this script. Install it before continuing."
-  fi
+  is_installed "git" "$error_msg1"
+  is_installed "curl" "$error_msg1"
 
-  # TODO: check technologies dependencies
+  for tech in "${TECHNOLOGIES[@]}"
+  do
+    case "${tech,,}" in
+      rust)
+        is_installed "rustc" "$error_msg2"
+        is_installed "cargo" "$error_msg2"
+      ;;
+      *)
+        echo "[ERROR]: $tech is not currently supported. See --help command to learn about supported technologies."
+        exit 1
+      ;;
+    esac
+  done
 
   echo "[INFO]: All dependencies are correct."
 }
@@ -266,6 +291,7 @@ function create_repo() {
       rm -Rf "$REPO_NAME"
       exit 1
     else
+      # BUG: If unable to create repository, it does not delete local
       echo "[INFO]: Creating remote repository..."
       github_api POST "{\"name\":\"${REPO_NAME}\", \"private\": ${PRIVATE}}" "$GH_CREATE_REPO_URL"
       echo -e "\n[INFO]: Remote repository created. Pushing initial content into initial repository..."
