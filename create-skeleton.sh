@@ -22,53 +22,83 @@ PUSH=true           # Push to remote repository.
 PRIVATE=false       # Public remote repository.
 FILE=""
 
-# Urls
+# URLs
+GH_GET_REPO_URL="https://api.github.com/repos"
+GH_CREATE_REPO_URL="https://api.github.com/user/repos"
 LICENSE_URL="https://raw.githubusercontent.com/licenses/license-templates/master/templates/"
 
+# Command help
 function help() {
   echo "NAME"
   echo "    create-skeleton.sh"
+  echo
   echo "SYNOPSIS"
   echo "    create-skeleton [options]"
+  echo
   echo "DESCRIPTION"
   echo "    Script that facilitates creating a repository skeleton."
+  echo
   echo "OPTIONS"
   echo "    -n, --name <repository-name>"
   echo "        Mandatory. Name of the repository."
+  echo
   echo "    -o, --owner <repository-owner>"
   echo "        Mandatory. GitHub owner of the repository."
   echo "        NOTE: Must have permissions to create the repository for this owner."
+  echo
   echo "    -t, --token <token>"
   echo "        Mandatory (unless -r/--no-push-remote). GitHub authentication token for specified user/organization."
   echo "        NOTE: Should have permissions to create a repository."
+  echo
   echo "    -l, --license <license-name>"
   echo "        Optional. Select license for the repository."
   echo "        NOTE: If no license selected, unlicense will be used."
   echo "        NOTE: Look at the following repository to choose the best option: "
   echo "        https://github.com/licenses/license-templates"
+  echo
   echo "    -d, --activate-dependabot"
   echo "        Optional. Activate Dependabot dependency analysis."
+  echo
   echo "    -p, --force-pr-contribution"
   echo "        Optional. For using PRs for code contributions, no code can be pushed to master branch."
+  echo
   echo "    -r, --no-push-remote"
   echo "        Optional. Push created skeleton to remote repository."
   echo "        NOTE: It only creates the repository. If the repository is already created, no changes are staged."
   echo "        NOTE: Pushes to remote by defualt."
+  echo
   echo "    -v, --private"
   echo "        Optional. Private visibility of the repository. If not specified, repository is public."
   echo "        NOTE: Only necessary when repository is created remotely (default unless -r/--no-push-remote)."
+  echo
   echo "    -f, --file"
   echo "        Optional. File configuration of this script."
+  echo
   echo "EXAMPLES"
   echo "    create-skeleton.sh --help"
   echo "        To better know how this script works."
-  echo "    create-skeleton.sh --name myRepoSkeleton --owner PabloAceG"
+  echo
+  echo "    create-skeleton.sh --name myRepoSkeleton --owner PabloAceG --token qwertyuiopasdfghjklzxcvbnm"
   echo "        Create a plain repository with no technologies called 'myRepoSkeleton' being the owner 'PabloAceG'."
+  echo
   echo "AUTHORS"
   echo "    - Pablo Acereda <p.aceredag@gmail.com>"
+  echo
+  echo "create-skeleton.sh v0.1         2021-05-30"
   exit 0
 }
 
+# Call to GitHub API
+function github_api() {
+  curl -s -L -w "%{http_code}" \
+       -X "$1" \
+       -H "Accept: application/vnd.github.v3+json" \
+       -u "$REPO_OWNER:${ACCESS_TOKEN}" \
+       -d "$2" \
+       "$3"
+}
+
+# Obtain script parameters from command line arguments.
 function get_parameters() {
   # When no options, the user might just want to know how the command works,
   # thefore, equivalent to run --help.
@@ -157,6 +187,7 @@ function get_parameters() {
   echo "[INFO]: Parameters read."
 }
 
+# Check dependencies necessary to execute the script.
 function check_dependencies() {
   echo "[INFO]: Checking dependecies..."
 
@@ -176,6 +207,7 @@ function check_dependencies() {
   echo "[INFO]: All dependencies are correct."
 }
 
+# Create initial files: README and LICENSE.
 function init_files() {
   echo "Creating initial commit..."
   # Create README file
@@ -197,6 +229,7 @@ function init_files() {
       LICENSE
 }
 
+# Create repository.
 function create_repo() {
   echo "[INFO]: Starting execution..."
 
@@ -220,17 +253,25 @@ function create_repo() {
   git add README.md LICENSE
   git commit -m "First commit"
   # Create remote repository
-  # BUG: Does not check if repo already exists
-  # BUG: Visibility does not seem to work
   if $PUSH
   then
-    curl -X POST \
-         -H "Accept: application/vnd.github.v3+json" \
-         -u "${REPO_OWNER}:${ACCESS_TOKEN}" \
-         "https://api.github.com/user/repos" \
-         -d "{\"name\":\"${REPO_NAME}\", \"private\": \"${PRIVATE}\"}"
-    git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}"
-    git push --set-upstream origin master
+    response=$(github_api GET "" "$GH_GET_REPO_URL/${REPO_OWNER}/${REPO_NAME}")
+    status_code=$(echo "$response" | tail -c 4)
+    if [ "$status_code" -eq "200" ]
+    then
+      echo "[ERROR]: The remote repository already exists. No repository will be created."
+      echo "[ERROR]: Deleting previosly created content."
+      echo "[WARNING]: You might want to activate -r/--no-push-remote flag to preserve changes."
+      cd ..
+      rm -Rf "$REPO_NAME"
+      exit 1
+    else
+      echo "[INFO]: Creating remote repository..."
+      github_api POST "{\"name\":\"${REPO_NAME}\", \"private\": ${PRIVATE}}" "$GH_CREATE_REPO_URL"
+      echo -e "\n[INFO]: Remote repository created. Pushing initial content into initial repository..."
+      git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}"
+      git push --set-upstream origin master
+    fi
   fi
 }
 
