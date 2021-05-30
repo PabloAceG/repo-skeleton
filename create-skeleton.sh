@@ -254,6 +254,16 @@ function init_files() {
       LICENSE
 }
 
+# Delete local repository.
+function rollback_local_repo() {
+      echo "[ERROR]: $1 No repository will be created."
+      echo "[ERROR]: Deleting local repository."
+      echo "[WARNING]: You might want to activate -r/--no-push-remote flag to preserve changes."
+      cd ..
+      rm -Rf "$REPO_NAME"
+      exit 1
+}
+
 # Create repository.
 function create_repo() {
   echo "[INFO]: Starting execution..."
@@ -280,24 +290,20 @@ function create_repo() {
   # Create remote repository
   if $PUSH
   then
+    echo "[INFO]: Checking if repository already exists..."
     response=$(github_api GET "" "$GH_GET_REPO_URL/${REPO_OWNER}/${REPO_NAME}")
     status_code=$(echo "$response" | tail -c 4)
-    if [ "$status_code" -eq "200" ]
-    then
-      echo "[ERROR]: The remote repository already exists. No repository will be created."
-      echo "[ERROR]: Deleting previosly created content."
-      echo "[WARNING]: You might want to activate -r/--no-push-remote flag to preserve changes."
-      cd ..
-      rm -Rf "$REPO_NAME"
-      exit 1
-    else
-      # BUG: If unable to create repository, it does not delete local
-      echo "[INFO]: Creating remote repository..."
-      github_api POST "{\"name\":\"${REPO_NAME}\", \"private\": ${PRIVATE}}" "$GH_CREATE_REPO_URL"
-      echo -e "\n[INFO]: Remote repository created. Pushing initial content into initial repository..."
-      git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}"
-      git push --set-upstream origin master
-    fi
+    [[ "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository already exists."
+
+    echo "[INFO]: Creating remote repository..."
+    response=$(github_api POST "{\"name\":\"${REPO_NAME}\", \"private\": ${PRIVATE}}" "$GH_CREATE_REPO_URL")
+    status_code=$(echo "$response" | tail -c 4)
+    echo "$status_code"
+    [[ ! "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository couldn't be created."
+
+    echo -e "\n[INFO]: Remote repository created. Pushing initial content into initial repository..."
+    git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}"
+    git push --set-upstream origin master
   fi
 }
 
