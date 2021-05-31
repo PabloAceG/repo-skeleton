@@ -106,6 +106,24 @@ function github_api() {
        "$3"
 }
 
+function get_license() {
+  curl -L "${LICENSE_URL}${LICENSE_NAME}.txt" > LICENSE
+  sed -i                                        \
+      -e "s/{{ year }}/$(date +"%Y")/g"         \
+      -e "s/{{ organization }}/${REPO_OWNER}/g" \
+      -e "s/{{ project }}/${REPO_NAME}/g"       \
+      LICENSE
+}
+
+# Check for a package being installed in the system.
+function is_installed() {
+  if [[ ! $(command -v $1) ]]
+  then
+    echo "[ERROR]: $1 $2"
+    exit 1
+  fi
+}
+
 # Obtain script parameters from command line arguments.
 function get_parameters() {
   # When no options, the user might just want to know how the command works,
@@ -196,15 +214,6 @@ function get_parameters() {
   echo "[INFO]: Parameters read."
 }
 
-# Check for a package being installed in the system.
-function is_installed() {
-  if [[ ! $(which $1) ]]
-  then
-    echo "[ERROR]: $1 $2"
-    exit 1
-  fi
-}
-
 # Check dependencies necessary to execute the script.
 function check_dependencies() {
   echo "[INFO]: Checking dependecies..."
@@ -232,28 +241,6 @@ function check_dependencies() {
   echo "[INFO]: All dependencies are correct."
 }
 
-# Create initial files: README and LICENSE.
-function init_files() {
-  echo "Creating initial commit..."
-  # Create README file
-  echo "$REPO_NAME" > README.md
-  # Create license
-  if [ -z $LICENSE_NAME ]
-  then
-    echo "[WARNING]: No license specified, using unlicense."
-    echo "[DISCLAIMER]: You should choose a LICENSE that suits the purpose of your project."
-    echo "[DISCLAIMER]: You can see the available licenses in:"
-    echo "https://github.com/licenses/license-templates"
-    LICENSE_NAME=unlicense
-  fi
-  curl -L "${LICENSE_URL}${LICENSE_NAME}.txt" > LICENSE
-  sed -i                                        \
-      -e "s/{{ year }}/$(date +"%Y")/g"         \
-      -e "s/{{ organization }}/${REPO_OWNER}/g" \
-      -e "s/{{ project }}/${REPO_NAME}/g"       \
-      LICENSE
-}
-
 # Delete local repository.
 function rollback_local_repo() {
       echo "[ERROR]: $1 No repository will be created."
@@ -264,33 +251,70 @@ function rollback_local_repo() {
       exit 1
 }
 
-# Create repository.
-function create_repo() {
-  echo "[INFO]: Starting execution..."
+function project_skeleton() {
+  # BUG: If more than one technology is used, skeletons might have conflicts among them
+  for tech in "${TECHNOLOGIES[@]}"
+  do
+    case ${tech,,} in
+      rust)
+        cargo init -q
+        echo "[INFO]: Rust skeleton has been created."
+        # TODO: Provide configuration options using --config
+        echo "[WARNING]: You should take a look at the Cargo.toml file to see that the information in it is correct."
+        git add .
+        git commit -m "Rust skeleton"
+      ;;
+      *)
+        echo "[WARNING]: $tech is unsupported at this moment, but it is quite probably on the making. Be patient."
+      ;;
+    esac
+  done
+}
 
-  # Filter parameters
-  get_parameters "$@"
-  # See if all dependencies are installed
-  check_dependencies
-
-  # Create initial commit
+# Create local repository with selected LICENSE and README files. It also creates an skeleton for the chosen
+# technologies.
+function create_local_repository() {
+  # No folder in current directory has the same name
+  echo "[INFO]: Creating local repository..."
   if [ -e "$REPO_NAME" ]
   then
     echo "[ERROR]: There is a already folder with your repository name. It won't be created."
     exit  1
   fi
 
-  # Create local repository
+  # Create folder
   mkdir "$REPO_NAME"
   cd "$REPO_NAME"
-  init_files
+
+  # Create README
+  echo "* $REPO_NAME" > README.org
+
+  # Create LICENSE
+  if [ -z $LICENSE_NAME ]
+  then
+    echo "[WARNING]: No license specified, using unlicense."
+    echo "[DISCLAIMER]: You should choose a LICENSE that suits the purpose of your project."
+    echo "[DISCLAIMER]: You can see the available licenses in:"
+    echo "https://github.com/licenses/license-templates"
+    LICENSE_NAME=unlicense
+  fi
+  get_license
+
+  # Initialize local repository
   git init
-  git add README.md LICENSE
+  git add README.org LICENSE
   git commit -m "First commit"
-  # Create remote repository
+
+  # Define skeleton for specific language/project
+  project_skeleton
+  echo "[INFO]: Local repository has been created..."
+}
+
+# Create remote repository in GitHub and push local content.
+function create_remote_repository() {
   if $PUSH
   then
-    echo "[INFO]: Checking if repository already exists..."
+    echo "[INFO]: Checking if remote repository already exists..."
     response=$(github_api GET "" "$GH_GET_REPO_URL/${REPO_OWNER}/${REPO_NAME}")
     status_code=$(echo "$response" | tail -c 4)
     [[ "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository already exists."
@@ -298,13 +322,24 @@ function create_repo() {
     echo "[INFO]: Creating remote repository..."
     response=$(github_api POST "{\"name\":\"${REPO_NAME}\", \"private\": ${PRIVATE}}" "$GH_CREATE_REPO_URL")
     status_code=$(echo "$response" | tail -c 4)
-    echo "$status_code"
     [[ ! "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository couldn't be created."
 
-    echo -e "\n[INFO]: Remote repository created. Pushing initial content into initial repository..."
+    echo -e "[INFO]: Remote repository created. Pushing initial content into repository..."
     git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}"
     git push --set-upstream origin master
   fi
 }
 
-create_repo "$@"
+# Main functiona. Creates a repository skeleton taking certain parameters and configuration options.
+function run_repo_skeleton() {
+  echo "[INFO]: Starting execution..."
+  # Filter parameters
+  get_parameters "$@"
+  # See if all dependencies are installed
+  check_dependencies
+
+  create_local_repository
+  create_remote_repository
+}
+
+run_repo_skeleton "$@"
