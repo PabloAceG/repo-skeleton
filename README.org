@@ -4,3 +4,10 @@
 
 This repository provides tools to create new repositories integrating
 tools such as Dependabot, hooks, and other functionalities.
+
+* TODO Things to include in script [0/8]
+  - [ ] Divide config file into sections.
+  - [ ] Define dependabot interval using configuration file/parameter.
+  - [ ] Activate PR and dependabot only when REMOTE is active.
+  - [ ] Configure Rust using cargo config options
+  - [ ] Include gitlint for commits in repo.

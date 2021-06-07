@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# TODO: Divide config file in sections.
+# TODO: Define dependabot interval using configuration
+# TODO: Activate pr and dependabot only when remote is active
+# TODO: Provide configuration options using --config for cargo
+
 #################################################################################
 #Script Name    :create-skeleton.sh
 #Description    :create the skeleton of scripts with different configuration
@@ -9,6 +14,14 @@ set -euo pipefail
 #Author         :Pablo Acereda
 #Email          :p.aceredag@gmail.com
 #################################################################################
+
+# Paths
+PATH_SCRIPT=$(dirname $(realpath $0))
+PATH_SOURCES="$PATH_SCRIPT/sources"
+PATH_DEPENDABOT="$PATH_SOURCES/dependabot"
+DEST_DEPENDABOT='.github'
+PATH_HOOKS="$PATH_SOURCES/hooks"
+DEST_HOOKS='.githooks'
 
 # Defaults
 REPO_NAME=""
@@ -201,6 +214,7 @@ function get_parameters() {
     ACCESS_TOKEN="$TOKEN"
     LICENSE_NAME="$LICENSE"
     read -a TECHNOLOGIES <<< "$TECHS" # Transform from str to arr
+    DEPENDABOT="$DEPENDENCIES"
     FORCE_PR="$PR"
     PUSH="$REMOTE"
     PRIVATE="$PRIVATE"
@@ -251,6 +265,43 @@ function rollback_local_repo() {
       exit 1
 }
 
+function block_push_master() {
+  if "$FORCE_PR"
+  then
+    echo "[INFO]: Blocking push to master branch..."
+    # Create hook
+    mkdir "$DEST_HOOKS"
+    cp "$PATH_HOOKS/pre-push" "$DEST_HOOKS"
+    # Add changes to git
+    git add "$DEST_HOOKS/pre-push"
+    git commit -m 'Avoid pushing changes to master branch'
+    git config --local core.hooksPath "$DEST_HOOKS"
+  fi
+}
+
+function activate_dependabot() {
+  if "$DEPENDABOT"
+  then
+    echo "[INFO]: Activate dependency control with Dependabot..."
+    # Create folder
+    mkdir "$DEST_DEPENDABOT"
+    # Create file
+    cp "$PATH_DEPENDABOT/dependabot.yml.sample" "$DEST_DEPENDABOT/dependabot.yml"
+    for tech in "${TECHNOLOGIES[@]}"
+    do
+      case ${tech,,} in
+        rust)
+          echo "[INFO] Adding Cargo (Rust) to Dependabot for dependency control..."
+          cat "$PATH_DEPENDABOT/dependabot-rust.yml.sample" >> "$DEST_DEPENDABOT/dependabot.yml"
+        ;;
+      esac
+    done
+    # Add changes to git
+    git add "$DEST_DEPENDABOT"
+    git commit -m "Add dependency control using Dependabot"
+  fi
+}
+
 function project_skeleton() {
   # BUG: If more than one technology is used, skeletons might have conflicts among them
   for tech in "${TECHNOLOGIES[@]}"
@@ -259,13 +310,9 @@ function project_skeleton() {
       rust)
         cargo init -q
         echo "[INFO]: Rust skeleton has been created."
-        # TODO: Provide configuration options using --config
         echo "[WARNING]: You should take a look at the Cargo.toml file to see that the information in it is correct."
         git add .
         git commit -m "Rust skeleton"
-      ;;
-      *)
-        echo "[WARNING]: $tech is unsupported at this moment, but it is quite probably on the making. Be patient."
       ;;
     esac
   done
@@ -307,12 +354,18 @@ function create_local_repository() {
 
   # Define skeleton for specific language/project
   project_skeleton
+  # Activate Dependabot for dependency update
+  activate_dependabot
+  # Force PRs to contribute to project
+  # BUG: Must learn how to create PR from terminal or API
+  #block_push_master
+
   echo "[INFO]: Local repository has been created..."
 }
 
 # Create remote repository in GitHub and push local content.
 function create_remote_repository() {
-  if $PUSH
+  if "$PUSH"
   then
     echo "[INFO]: Checking if remote repository already exists..."
     response=$(github_api GET "" "$GH_GET_REPO_URL/${REPO_OWNER}/${REPO_NAME}")
@@ -324,7 +377,7 @@ function create_remote_repository() {
     status_code=$(echo "$response" | tail -c 4)
     [[ ! "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository couldn't be created."
 
-    echo -e "[INFO]: Remote repository created. Pushing initial content into repository..."
+    echo "[INFO]: Remote repository created. Pushing initial content into repository..."
     git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}"
     git push --set-upstream origin master
   fi
