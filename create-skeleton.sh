@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# TODO: Divide config file in sections.
 # TODO: Define dependabot interval using configuration
 # TODO: Activate pr and dependabot only when remote is active
 # TODO: Provide configuration options using --config for cargo
@@ -224,6 +223,12 @@ function get_parameters() {
   [ -z "$REPO_NAME" ] && echo "[ERROR]: --name option is mandatory. See --help for more information."
   [ -z "$REPO_OWNER" ] && echo "[ERROR]: --owner argument is mandatory. See --help for more information."
   [ -z "$ACCESS_TOKEN" ] && "$PUSH" && echo "[ERROR]: --token argument is mandatory. See --help for more information."
+  [ -z "$PUSH" ] && PUSH=false && echo "[WARNING]: Not pushing repository, as none was specified."
+  if [[ -z "$PRIVATE" ]]
+  then
+    PRIVATE=true
+    "$PUSH" && "[WARNING]: Making repository private, as none was specified."
+  fi
 
   echo "[INFO]: Parameters read."
 }
