@@ -29,9 +29,11 @@ ACCESS_TOKEN=""
 LICENSE_NAME=""
 TECHNOLOGIES=[]
 DEPENDABOT=false    # Don't activate Dependabot.
+DEPENDABOT_INTERVAL="daily"
 FORCE_PR=false      # Don't for PRs for contributions.
 PUSH=true           # Push to remote repository.
 PRIVATE=false       # Public remote repository.
+
 FILE=""
 
 # URLs
@@ -70,6 +72,10 @@ function help() {
   echo
   echo "    -d, --activate-dependabot"
   echo "        Optional. Activate Dependabot dependency analysis."
+  echo
+  echo "        --dependabot-interval"
+  echo "        Optional. Select Dependabot check-for-update period."
+  echo "        NOTE: If none selected, daily chosen."
   echo
   echo "    -p, --force-pr-contribution"
   echo "        Optional. For using PRs for code contributions, no code can be pushed to master branch."
@@ -172,6 +178,10 @@ function get_parameters() {
       --activate-dependabot | -d)
         DEPENDABOT=true
       ;;
+      --dependabot-interval)
+        shift
+        DEPENDABOT_INTERVAL=$1
+      ;;
       --force-pr-contribution | -p)
         FORCE_PR=true
       ;;
@@ -214,6 +224,7 @@ function get_parameters() {
     LICENSE_NAME="$LICENSE"
     read -a TECHNOLOGIES <<< "$TECHS" # Transform from str to arr
     DEPENDABOT="$DEPENDENCIES"
+    DEPENDABOT_INTERVAL="$DEPENDENCIES_INTERVAL"
     FORCE_PR="$PR"
     PUSH="$REMOTE"
     PRIVATE="$PRIVATE"
@@ -229,6 +240,7 @@ function get_parameters() {
     PRIVATE=true
     "$PUSH" && "[WARNING]: Making repository private, as none was specified."
   fi
+  "$DEPENDABOT" && [ -z "$DEPENDABOT_INTERVAL" ] && DEPENDABOT_INTERVAL="daily" && echo "[WARNING]: Dependabot daily update set, as none was specified."
 
   echo "[INFO]: Parameters read."
 }
@@ -301,6 +313,7 @@ function activate_dependabot() {
         ;;
       esac
     done
+    sed -i -e "s/{{ interval }}/\"${DEPENDABOT_INTERVAL}\"/g" "$DEST_DEPENDABOT/dependabot.yml"
     # Add changes to git
     git add "$DEST_DEPENDABOT"
     git commit -m "Add dependency control using Dependabot"

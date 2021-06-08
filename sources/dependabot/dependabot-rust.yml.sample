@@ -3,7 +3,7 @@
     # Files stored in repository root
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: {{ interval }}
     labels:
       - "cargo"
       - "dependencies"
