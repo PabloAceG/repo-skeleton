@@ -1,14 +1,16 @@
-#+TITLE: skeleton
-
 * Introduction
 
 This repository provides tools to create new repositories integrating
 tools such as Dependabot, hooks, and other functionalities.
 
-* TODO Things to include in script [2/6]
+** TODO Things to include in script [3/6]
   - [X] Divide config file into sections.
   - [X] Define dependabot interval using configuration file/parameter.
   - [ ] Activate PR and dependabot only when REMOTE is active.
   - [ ] Configure Rust using cargo config options.
   - [ ] Include gitlint for commits in repo.
-  - [ ] Separate utils in different file.
+  - [X] Separate utils in different file.
+
+** FIXME Things to fix [0/2]
+  - [ ] Cannot push to master to add hook.
+  - [ ] Have multiple technologies at once.

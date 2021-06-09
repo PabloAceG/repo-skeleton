@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# TODO: Define dependabot interval using configuration
-# TODO: Activate pr and dependabot only when remote is active
-# TODO: Provide configuration options using --config for cargo
+source ./sources/utils.sh
 
 #################################################################################
 #Script Name    :create-skeleton.sh
