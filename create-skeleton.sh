@@ -109,35 +109,6 @@ function help() {
   echo "    - Pablo Acereda <p.aceredag@gmail.com>"
   echo
   echo "create-skeleton.sh v0.1         2021-05-30"
-  exit 0
-}
-
-# Call to GitHub API
-function github_api() {
-  curl -s -L -w "%{http_code}" \
-       -X "$1" \
-       -H "Accept: application/vnd.github.v3+json" \
-       -u "$REPO_OWNER:${ACCESS_TOKEN}" \
-       -d "$2" \
-       "$3"
-}
-
-function get_license() {
-  curl -L "${LICENSE_URL}${LICENSE_NAME}.txt" > LICENSE
-  sed -i                                        \
-      -e "s/{{ year }}/$(date +"%Y")/g"         \
-      -e "s/{{ organization }}/${REPO_OWNER}/g" \
-      -e "s/{{ project }}/${REPO_NAME}/g"       \
-      LICENSE
-}
-
-# Check for a package being installed in the system.
-function is_installed() {
-  if [[ ! $(command -v $1) ]]
-  then
-    echo "[ERROR]: $1 $2"
-    exit 1
-  fi
 }
 
 # Obtain script parameters from command line arguments.
@@ -160,46 +131,47 @@ function get_parameters() {
       --owner | -o)
         shift
         REPO_OWNER=$1
-      ;;
+        ;;
       --token | -t)
         shift
         ACCESS_TOKEN=$1
-      ;;
+        ;;
       --license | -l)
         shift
         LICENSE_NAME=$1
-      ;;
+        ;;
       --techs | -x)
         shift
         read -a TECHNOLOGIES <<< "$1"
-      ;;
+        ;;
       --activate-dependabot | -d)
         DEPENDABOT=true
-      ;;
+        ;;
       --dependabot-interval)
         shift
         DEPENDABOT_INTERVAL=$1
-      ;;
+        ;;
       --force-pr-contribution | -p)
         FORCE_PR=true
-      ;;
+        ;;
       --no-push-remote | -r)
         PUSH=false
-      ;;
+        ;;
       --private | -v)
         PRIVATE=true
-      ;;
+        ;;
       --file | -f)
         shift
         FILE=$1
-      ;;
+        ;;
       --help | -h)
         help
-      ;;
+        exit 0
+        ;;
       *)
         echo "[ERROR]: $1 is not recognized as a valid argument. Run --help command to see valid arguments."
         exit 1
-      ;;
+        ;;
     esac
     shift # Iterate to next parameter
   done
@@ -241,6 +213,15 @@ function get_parameters() {
   "$DEPENDABOT" && [ -z "$DEPENDABOT_INTERVAL" ] && DEPENDABOT_INTERVAL="daily" && echo "[WARNING]: Dependabot daily update set, as none was specified."
 
   echo "[INFO]: Parameters read."
+}
+
+function get_license() {
+  curl -L "${LICENSE_URL}${LICENSE_NAME}.txt" > LICENSE
+  sed -i                                        \
+      -e "s/{{ year }}/$(date +"%Y")/g"         \
+      -e "s/{{ organization }}/${REPO_OWNER}/g" \
+      -e "s/{{ project }}/${REPO_NAME}/g"       \
+      LICENSE
 }
 
 # Check dependencies necessary to execute the script.
