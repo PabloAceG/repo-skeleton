@@ -7,12 +7,12 @@ source ./sources/utils.sh
 #Script Name    :create-skeleton.sh
 #Description    :create the skeleton of scripts with different configuration
 #                options
-#Args           :
+#Args           : See help for more information.
 #Author         :Pablo Acereda
 #Email          :p.aceredag@gmail.com
 #################################################################################
 
-# Paths
+## Paths
 PATH_SCRIPT=$(dirname $(realpath $0))
 PATH_SOURCES="$PATH_SCRIPT/sources"
 PATH_DEPENDABOT="$PATH_SOURCES/dependabot"
@@ -20,24 +20,27 @@ DEST_DEPENDABOT='.github'
 PATH_HOOKS="$PATH_SOURCES/hooks"
 DEST_HOOKS='.githooks'
 
-# Defaults
+## Defaults
+# Repository
 REPO_NAME=""
 REPO_OWNER=""
-ACCESS_TOKEN=""
 LICENSE_NAME=""
-TECHNOLOGIES=[]
+PUSH=true           # Push to remote repository.
+# Technologies
+TECHNOLOGIES=()
+# Remote characteristics
+ACCESS_TOKEN=""
+PRIVATE=false       # Public remote repository.
 DEPENDABOT=false    # Don't activate Dependabot.
 DEPENDABOT_INTERVAL="daily"
 FORCE_PR=false      # Don't for PRs for contributions.
-PUSH=true           # Push to remote repository.
-PRIVATE=false       # Public remote repository.
 
 FILE=""
 
-# URLs
+## URLs
 GH_GET_REPO_URL="https://api.github.com/repos"
 GH_CREATE_REPO_URL="https://api.github.com/user/repos"
-LICENSE_URL="https://raw.githubusercontent.com/licenses/license-templates/master/templates/"
+LICENSE_URL="https://raw.githubusercontent.com/licenses/license-templates/master/templates"
 
 # Command help
 function help() {
@@ -111,6 +114,65 @@ function help() {
   echo "create-skeleton.sh v0.1         2021-05-30"
 }
 
+function correct_parameters() {
+  # Mandatory
+  if [ -z "$REPO_NAME" ]
+  then
+    echo "[ERROR]: --name option is mandatory. See --help for more information."
+    exit 1
+  fi
+  if [ -z "$REPO_OWNER" ]
+  then
+    echo "[ERROR]: --owner argument is mandatory. See --help for more information."
+    exit 1
+  fi
+
+  # Optional that can be set if nothing is passed
+  if [ -z "$LICENSE_NAME" ]
+  then
+    echo "[WARNING]: No license specified, using unlicense."
+    echo "[WARNING]: You should choose a LICENSE that suits the purpose of your project."
+    echo "[WARNING]: You can see the available licenses in:"
+    echo "https://github.com/licenses/license-templates"
+    LICENSE_NAME=unlicense
+  fi
+  if [ $(is_bool $PUSH) ]
+  then
+    PUSH=false
+    echo "[WARNING]: Not pushing to remote repository, as none was specified..."
+  fi
+
+  # Dependant from other variable
+  if $PUSH
+  then
+    if [ -z "$ACCESS_TOKEN" ]
+    then
+      echo "[ERROR]: when pushing to remote --token argument is mandatory. See --help for more information."
+      exit 1
+    fi
+    if [ ! $(is_bool "$PRIVATE") ]
+    then
+      PRIVATE=true
+      echo "[WARNING]: Making repository private, as none was specified..."
+    fi
+    if [ ! $(is_bool "$DEPENDABOT") ]
+    then
+      DEPENDABOT=false
+      echo "[WARNING]: Not activating Dependabot, as nothing was specified..."
+    fi
+    if $DEPENDABOT && [ ! $(is_valid_interval "$DEPENDABOT_INTERVAL") ]
+    then
+      DEPENDABOT_INTERVAL="daily"
+      echo "[WARNING]: Dependabot daily check-for-updates has been set, as none was specified.."
+    fi
+    if [ ! $(is_bool "$FORCE_PR") ]
+    then
+      FORCE_PR=false
+      echo "[WARNING]: "
+    fi
+  fi
+}
+
 # Obtain script parameters from command line arguments.
 function get_parameters() {
   # When no options, the user might just want to know how the command works,
@@ -119,6 +181,7 @@ function get_parameters() {
   then
     echo "[WARNING]: You are executing this command without options. Some of them are mandatory."
     help
+    exit 1
   fi
 
   while [ "$#" -gt 0 ]
@@ -188,6 +251,7 @@ function get_parameters() {
     fi
     # Get parameters from configuration file
     source "$FILE"
+    # Assign parameters
     REPO_NAME="$REPO"
     REPO_OWNER="$OWNER"
     ACCESS_TOKEN="$TOKEN"
@@ -200,23 +264,12 @@ function get_parameters() {
     PRIVATE="$PRIVATE"
   fi
 
-  # Check for mandatory fields
-  [ -z "$REPO_NAME" ] && echo "[ERROR]: --name option is mandatory. See --help for more information."
-  [ -z "$REPO_OWNER" ] && echo "[ERROR]: --owner argument is mandatory. See --help for more information."
-  [ -z "$ACCESS_TOKEN" ] && "$PUSH" && echo "[ERROR]: --token argument is mandatory. See --help for more information."
-  [ -z "$PUSH" ] && PUSH=false && echo "[WARNING]: Not pushing repository, as none was specified."
-  if [[ -z "$PRIVATE" ]]
-  then
-    PRIVATE=true
-    "$PUSH" && "[WARNING]: Making repository private, as none was specified."
-  fi
-  "$DEPENDABOT" && [ -z "$DEPENDABOT_INTERVAL" ] && DEPENDABOT_INTERVAL="daily" && echo "[WARNING]: Dependabot daily update set, as none was specified."
-
-  echo "[INFO]: Parameters read."
+  # Check for parameters being configured as needed
+  correct_parameters
 }
 
 function get_license() {
-  curl -L "${LICENSE_URL}${LICENSE_NAME}.txt" > LICENSE
+  curl -L "$LICENSE_URL/$LICENSE_NAME.txt" > LICENSE
   sed -i                                        \
       -e "s/{{ year }}/$(date +"%Y")/g"         \
       -e "s/{{ organization }}/${REPO_OWNER}/g" \
@@ -253,7 +306,7 @@ function check_dependencies() {
 
 # Delete local repository.
 function rollback_local_repo() {
-      echo "[ERROR]: $1 No repository will be created."
+      echo "[ERROR]: $1"
       echo "[ERROR]: Deleting local repository."
       echo "[WARNING]: You might want to activate -r/--no-push-remote flag to preserve changes."
       cd ..
@@ -300,7 +353,6 @@ function activate_dependabot() {
 }
 
 function project_skeleton() {
-  # BUG: If more than one technology is used, skeletons might have conflicts among them
   for tech in "${TECHNOLOGIES[@]}"
   do
     case ${tech,,} in
@@ -332,16 +384,7 @@ function create_local_repository() {
 
   # Create README
   echo "* $REPO_NAME" > README.org
-
   # Create LICENSE
-  if [ -z $LICENSE_NAME ]
-  then
-    echo "[WARNING]: No license specified, using unlicense."
-    echo "[DISCLAIMER]: You should choose a LICENSE that suits the purpose of your project."
-    echo "[DISCLAIMER]: You can see the available licenses in:"
-    echo "https://github.com/licenses/license-templates"
-    LICENSE_NAME=unlicense
-  fi
   get_license
 
   # Initialize local repository
@@ -355,7 +398,7 @@ function create_local_repository() {
   activate_dependabot
   # Force PRs to contribute to project
   # BUG: Must learn how to create PR from terminal or API
-  #block_push_master
+  block_push_master
 
   echo "[INFO]: Local repository has been created..."
 }
@@ -367,12 +410,12 @@ function create_remote_repository() {
     echo "[INFO]: Checking if remote repository already exists..."
     response=$(github_api GET "" "$GH_GET_REPO_URL/${REPO_OWNER}/${REPO_NAME}")
     status_code=$(echo "$response" | tail -c 4)
-    [[ "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository already exists."
+    [[ "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository already exists..."
 
     echo "[INFO]: Creating remote repository..."
     response=$(github_api POST "{\"name\":\"${REPO_NAME}\", \"private\": ${PRIVATE}}" "$GH_CREATE_REPO_URL")
     status_code=$(echo "$response" | tail -c 4)
-    [[ ! "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository couldn't be created."
+    [[ ! "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository couldn't be created..."
 
     echo "[INFO]: Remote repository created. Pushing initial content into repository..."
     git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}"
