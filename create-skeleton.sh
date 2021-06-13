@@ -157,22 +157,22 @@ function correct_parameters() {
       echo "[ERROR]: when pushing to remote --token argument is mandatory. See --help for more information."
       exit 1
     fi
-    if [ ! $(is_bool "$PRIVATE") ]
+    if [[ $(is_bool "$PRIVATE") -eq 1 ]]
     then
       PRIVATE=true
       echo "[WARNING]: Making repository private, as none was specified..."
     fi
-    if [ ! $(is_bool "$DEPENDABOT") ]
+    if [[ $(is_bool "$DEPENDABOT") -eq 1 ]]
     then
       DEPENDABOT=false
       echo "[WARNING]: Not activating Dependabot, as nothing was specified..."
     fi
-    if $DEPENDABOT && [ ! $(is_valid_interval "$DEPENDABOT_INTERVAL") ]
+    if $DEPENDABOT && [[ $(is_valid_interval "$DEPENDABOT_INTERVAL") -eq 1 ]]
     then
       DEPENDABOT_INTERVAL="daily"
       echo "[WARNING]: Dependabot daily check-for-updates has been set, as none was specified.."
     fi
-    if [ ! $(is_bool "$FORCE_PR") ]
+    if [[ $(is_bool "$FORCE_PR") -eq 1 ]]
     then
       FORCE_PR=false
       echo "[WARNING]: "
@@ -269,7 +269,7 @@ function get_parameters() {
     DEPENDABOT_INTERVAL="$DEPENDENCIES_INTERVAL"
     FORCE_PR="$PR"
     PUSH="$REMOTE"
-    PRIVATE="$PRIVATE"
+    PRIVATE="$MAKE_PRIVATE"
   fi
 
   # Check for parameters being configured as needed
