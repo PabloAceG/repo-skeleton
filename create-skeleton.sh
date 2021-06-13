@@ -50,50 +50,58 @@ function help() {
   echo "    create-skeleton [options]"
   echo
   echo "DESCRIPTION"
-  echo "    Script that facilitates creating a repository skeleton."
+  echo "    Script that facilitates the creation of repository skeleton. It pushes changes to a remote repository."
   echo
-  echo "OPTIONS"
+  echo "OPERATIONS"
+  echo "    -f, --file <filename>"
+  echo "        Use configuration file instead of parameters to configure behaviour of this script."
+  echo
+  echo "    -h, --help"
+  echo "        Displays this manual."
+  echo
+  echo "PARAMETERS"
+  echo "    Are not taken into account if -f/--file is passed."
+  echo
   echo "    -n, --name <repository-name>"
-  echo "        Mandatory. Name of the repository."
+  echo "        Name of the repository."
   echo
   echo "    -o, --owner <repository-owner>"
-  echo "        Mandatory. GitHub owner of the repository."
-  echo "        NOTE: Must have permissions to create the repository for this owner."
+  echo "        GitHub owner of the repository."
   echo
   echo "    -t, --token <token>"
   echo "        Mandatory (unless -r/--no-push-remote). GitHub authentication token for specified user/organization."
   echo "        NOTE: Should have permissions to create a repository."
   echo
-  echo "    -l, --license <license-name>"
-  echo "        Optional. Select license for the repository."
-  echo "        NOTE: If no license selected, unlicense will be used."
-  echo "        NOTE: Look at the following repository to choose the best option: "
+  echo "OPTIONS"
+  echo "    Are not taken into account if -f/--file is passed."
+  echo
+  echo "    --dependabot"
+  echo "        Activate Dependabot dependency analysis."
+  echo
+  echo "    --dependabot-interval <interval>"
+  echo "        Select Dependabot check-for-update period. If nothing is chosen, daily is selected."
+  echo
+  echo "            Available intervals:"
+  echo "              daily, weekly, monthly"
+  echo
+  echo "    --license <license-name>"
+  echo "        Select license for the repository. If no license is selected unlicense is used."
+  echo "        To learn more about supported licenses, take a look into: "
   echo "        https://github.com/licenses/license-templates"
   echo
-  echo "    -d, --activate-dependabot"
-  echo "        Optional. Activate Dependabot dependency analysis."
+  echo "    --no-push-remote"
+  echo "        Do not push skeleton into remote repository."
   echo
-  echo "        --dependabot-interval"
-  echo "        Optional. Select Dependabot check-for-update period."
-  echo "        NOTE: If none selected, daily chosen."
+  echo "    --pr-contribution"
+  echo "        For using PRs for code contributions, no code can be pushed to master branch."
   echo
-  echo "    -p, --force-pr-contribution"
-  echo "        Optional. For using PRs for code contributions, no code can be pushed to master branch."
+  echo "    --private"
+  echo "        Private visibility of the repository. If not specified, repository is public."
   echo
-  echo "    -r, --no-push-remote"
-  echo "        Optional. Push created skeleton to remote repository."
-  echo "        NOTE: It only creates the repository. If the repository is already created, no changes are staged."
-  echo "        NOTE: Pushes to remote by defualt."
-  echo
-  echo "    -v, --private"
-  echo "        Optional. Private visibility of the repository. If not specified, repository is public."
-  echo "        NOTE: Only necessary when repository is created remotely (default unless -r/--no-push-remote)."
-  echo
-  echo "    -f, --file"
-  echo "        Optional. File configuration of this script."
+  echo "    -technology <tech-name>"
+  echo "        Main technology to base the repository in. Take a look into SUPPORTED TECHNOLOGIES section to learn more about available technologies."
   echo
   echo "SUPPORTED TECHNOLOGIES"
-  echo "    So far, the following technologies are supported: "
   echo "    - Rust"
   echo
   echo "EXAMPLES"
