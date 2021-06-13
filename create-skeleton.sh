@@ -21,21 +21,20 @@ PATH_HOOKS="$PATH_SOURCES/hooks"
 DEST_HOOKS='.githooks'
 
 ## Defaults
+FILE=""
 # Repository
 REPO_NAME=""
 REPO_OWNER=""
 LICENSE_NAME=""
 PUSH=true           # Push to remote repository.
 # Technologies
-TECHNOLOGIES=()
+TECHNOLOGY=""
 # Remote characteristics
 ACCESS_TOKEN=""
 PRIVATE=false       # Public remote repository.
 DEPENDABOT=false    # Don't activate Dependabot.
 DEPENDABOT_INTERVAL="daily"
 FORCE_PR=false      # Don't for PRs for contributions.
-
-FILE=""
 
 ## URLs
 GH_GET_REPO_URL="https://api.github.com/repos"
@@ -187,49 +186,50 @@ function get_parameters() {
   while [ "$#" -gt 0 ]
   do
     case "$1" in
-      --name | -n)
-        shift
-        REPO_NAME=$1
-        ;;
-      --owner | -o)
-        shift
-        REPO_OWNER=$1
-        ;;
-      --token | -t)
-        shift
-        ACCESS_TOKEN=$1
-        ;;
-      --license | -l)
-        shift
-        LICENSE_NAME=$1
-        ;;
-      --techs | -x)
-        shift
-        read -a TECHNOLOGIES <<< "$1"
-        ;;
-      --activate-dependabot | -d)
-        DEPENDABOT=true
-        ;;
-      --dependabot-interval)
-        shift
-        DEPENDABOT_INTERVAL=$1
-        ;;
-      --force-pr-contribution | -p)
-        FORCE_PR=true
-        ;;
-      --no-push-remote | -r)
-        PUSH=false
-        ;;
-      --private | -v)
-        PRIVATE=true
-        ;;
       --file | -f)
         shift
-        FILE=$1
+        FILE="$1"
+        # TODO: Call a function and exit this loop
         ;;
       --help | -h)
         help
         exit 0
+        ;;
+      --name | -n)
+        shift
+        REPO_NAME="$1"
+        ;;
+      --owner | -o)
+        shift
+        REPO_OWNER="$1"
+        ;;
+      --token | -t)
+        shift
+        ACCESS_TOKEN="$1"
+        ;;
+      --dependabot)
+        DEPENDABOT=true
+        ;;
+      --dependabot-interval)
+        shift
+        DEPENDABOT_INTERVAL="$1"
+        ;;
+      --license)
+        shift
+        LICENSE_NAME="$1"
+        ;;
+      --no-push-remote)
+        PUSH=false
+        ;;
+      --pr-contribution)
+        FORCE_PR=true
+        ;;
+      --private)
+        PRIVATE=true
+        ;;
+      --technology)
+        shift
+        TECHNOLOGY="$1"
         ;;
       *)
         echo "[ERROR]: $1 is not recognized as a valid argument. Run --help command to see valid arguments."
@@ -256,7 +256,7 @@ function get_parameters() {
     REPO_OWNER="$OWNER"
     ACCESS_TOKEN="$TOKEN"
     LICENSE_NAME="$LICENSE"
-    read -a TECHNOLOGIES <<< "$TECHS" # Transform from str to arr
+    TECHNOLOGY="$MAIN_TECH"
     DEPENDABOT="$DEPENDENCIES"
     DEPENDABOT_INTERVAL="$DEPENDENCIES_INTERVAL"
     FORCE_PR="$PR"
@@ -287,19 +287,16 @@ function check_dependencies() {
   is_installed "git" "$error_msg1"
   is_installed "curl" "$error_msg1"
 
-  for tech in "${TECHNOLOGIES[@]}"
-  do
-    case "${tech,,}" in
-      rust)
-        is_installed "rustc" "$error_msg2"
-        is_installed "cargo" "$error_msg2"
-      ;;
-      *)
-        echo "[ERROR]: $tech is not currently supported. See --help command to learn about supported technologies."
-        exit 1
-      ;;
-    esac
-  done
+  case "${TECHNOLOGY,,}" in
+    rust)
+      is_installed "rustc" "$error_msg2"
+      is_installed "cargo" "$error_msg2"
+    ;;
+    *)
+      echo "[ERROR]: $TECHNOLOGY is not currently supported. See --help command to learn about supported technologies."
+      exit 1
+    ;;
+  esac
 
   echo "[INFO]: All dependencies are correct."
 }
@@ -336,15 +333,12 @@ function activate_dependabot() {
     mkdir "$DEST_DEPENDABOT"
     # Create file
     cp "$PATH_DEPENDABOT/dependabot.yml.sample" "$DEST_DEPENDABOT/dependabot.yml"
-    for tech in "${TECHNOLOGIES[@]}"
-    do
-      case ${tech,,} in
-        rust)
-          echo "[INFO] Adding Cargo (Rust) to Dependabot for dependency control..."
-          cat "$PATH_DEPENDABOT/dependabot-rust.yml.sample" >> "$DEST_DEPENDABOT/dependabot.yml"
-        ;;
-      esac
-    done
+    case ${TECHNOLOGY,,} in
+      rust)
+        echo "[INFO] Adding Cargo (Rust) to Dependabot for dependency control..."
+        cat "$PATH_DEPENDABOT/dependabot-rust.yml.sample" >> "$DEST_DEPENDABOT/dependabot.yml"
+      ;;
+    esac
     sed -i -e "s/{{ interval }}/\"${DEPENDABOT_INTERVAL}\"/g" "$DEST_DEPENDABOT/dependabot.yml"
     # Add changes to git
     git add "$DEST_DEPENDABOT"
@@ -353,18 +347,15 @@ function activate_dependabot() {
 }
 
 function project_skeleton() {
-  for tech in "${TECHNOLOGIES[@]}"
-  do
-    case ${tech,,} in
-      rust)
-        cargo init -q
-        echo "[INFO]: Rust skeleton has been created."
-        echo "[WARNING]: You should take a look at the Cargo.toml file to see that the information in it is correct."
-        git add .
-        git commit -m "Rust skeleton"
-      ;;
-    esac
-  done
+  case ${TECHNOLOGY,,} in
+    rust)
+      cargo init -q
+      echo "[INFO]: Rust skeleton has been created."
+      echo "[WARNING]: You should take a look at the Cargo.toml file to see that the information in it is correct."
+      git add .
+      git commit -m "Rust skeleton"
+    ;;
+  esac
 }
 
 # Create local repository with selected LICENSE and README files. It also creates an skeleton for the chosen
