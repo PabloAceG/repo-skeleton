@@ -3,13 +3,13 @@
 This repository provides tools to create new repositories integrating
 tools such as Dependabot, hooks, and other functionalities.
 
-** TODO Things to include in script [5/9]
+** TODO Things to include in script [6/9]
   - [ ] Update README with execution, parameters, etc.
   - [X] Divide config file into sections.
   - [X] Define dependabot interval using configuration file/parameter.
   - [X] Activate PR and dependabot only when REMOTE is active.
   - [X] Separate utils in different file.
-  - [ ] Change exit for returns.
+  - [X] Change exit for returns.
   - [X] Reorder help options in alphabetical order.
   - [ ] Restructure create_local/remote_repository.
   - [ ] Pre-commit with linters.

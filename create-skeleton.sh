@@ -12,6 +12,9 @@ source ./sources/utils.sh
 #Email          :p.aceredag@gmail.com
 #################################################################################
 
+# Command to execute
+COMMAND=repo_skeleton
+
 ## Paths
 PATH_SCRIPT=$(dirname $(realpath $0))
 PATH_SOURCES="$PATH_SCRIPT/sources"
@@ -126,12 +129,12 @@ function correct_parameters() {
   if [ -z "$REPO_NAME" ]
   then
     echo "[ERROR]: --name option is mandatory. See --help for more information."
-    exit 1
+    return 1
   fi
   if [ -z "$REPO_OWNER" ]
   then
     echo "[ERROR]: --owner argument is mandatory. See --help for more information."
-    exit 1
+    return 1
   fi
 
   # Optional that can be set if nothing is passed
@@ -155,7 +158,7 @@ function correct_parameters() {
     if [ -z "$ACCESS_TOKEN" ]
     then
       echo "[ERROR]: when pushing to remote --token argument is mandatory. See --help for more information."
-      exit 1
+      return 1
     fi
     if [[ $(is_bool "$PRIVATE") -eq 1 ]]
     then
@@ -188,7 +191,7 @@ function get_parameters() {
   then
     echo "[WARNING]: You are executing this command without options. Some of them are mandatory..."
     help
-    exit 1
+    return 1
   fi
 
   while [ "$#" -gt 0 ]
@@ -197,11 +200,11 @@ function get_parameters() {
       --file | -f)
         shift
         FILE="$1"
-        # TODO: Call a function and exit this loop
+        break
         ;;
       --help | -h)
-        help
-        exit 0
+        COMMAND=help
+        return 0
         ;;
       --name | -n)
         shift
@@ -241,7 +244,7 @@ function get_parameters() {
         ;;
       *)
         echo "[ERROR]: $1 is not recognized as a valid argument. Run --help command to see valid arguments."
-        exit 1
+        return 1
         ;;
     esac
     shift # Iterate to next parameter
@@ -255,7 +258,7 @@ function get_parameters() {
     if [ ! -e "$FILE" ]
     then
       echo "[ERROR]: The specified configuration file does not exist. Check if the path is correct."
-      exit 1
+      return 1
     fi
     # Get parameters from configuration file
     source "$FILE"
@@ -276,6 +279,7 @@ function get_parameters() {
   correct_parameters
 }
 
+# Download license
 function get_license() {
   curl -s                                  \
        -L "$LICENSE_URL/$LICENSE_NAME.txt" \
@@ -304,7 +308,7 @@ function check_dependencies() {
     ;;
     *)
       echo "[ERROR]: $TECHNOLOGY is not currently supported. See --help command to learn about supported technologies."
-      exit 1
+      return 1
     ;;
   esac
 
@@ -318,13 +322,13 @@ function rollback_local_repo() {
       echo "[WARNING]: You might want to activate -r/--no-push-remote flag to preserve changes."
       cd ..
       rm -Rf "$REPO_NAME"
-      exit 1
+      return 1
 }
 
 function block_push_master() {
   if "$FORCE_PR"
   then
-    echo "[INFO]: Blocking push to master branch..."
+    echo "[INFO]:   Blocking push to master branch..."
     # Create hook
     mkdir "$DEST_HOOKS"
     cp "$PATH_HOOKS/pre-push" "$DEST_HOOKS"
@@ -332,6 +336,7 @@ function block_push_master() {
     git add "$DEST_HOOKS/pre-push" 1>/dev/null
     git commit --quiet -m 'Avoid pushing changes to master branch'
     git config --local core.hooksPath "$DEST_HOOKS" 1>/dev/null
+    echo "[INFO]:   Blocking push to master branch... Done"
   fi
 }
 
@@ -383,7 +388,7 @@ function create_local_repository() {
   if [ -e "$REPO_NAME" ]
   then
     echo "[ERROR]: There is a already folder with your repository name. It won't be created."
-    exit  1
+    return  1
   fi
 
   # Create folder
@@ -439,17 +444,22 @@ function create_remote_repository() {
 }
 
 # Main functiona. Creates a repository skeleton taking certain parameters and configuration options.
-function run_repo_skeleton() {
+function repo_skeleton() {
   echo "[INFO]: Creating repository skeleton..."
-  # Filter parameters
-  get_parameters "$@"
   # See if all dependencies are installed
-  check_dependencies
+  check_dependencies || return $?
 
-  create_local_repository
-  create_remote_repository
+  create_local_repository || return $?
+  create_remote_repository || return $?
 
   echo "[INFO]: Creating repository skeleton... Done"
+}
+
+function run_repo_skeleton() {
+  # Filter parameters
+  get_parameters "$@" || return $?
+
+  $COMMAND
 }
 
 run_repo_skeleton "$@"
