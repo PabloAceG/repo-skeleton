@@ -186,7 +186,7 @@ function get_parameters() {
   # thefore, equivalent to run --help.
   if [ "$#" -eq 0 ]
   then
-    echo "[WARNING]: You are executing this command without options. Some of them are mandatory."
+    echo "[WARNING]: You are executing this command without options. Some of them are mandatory..."
     help
     exit 1
   fi
@@ -308,7 +308,7 @@ function check_dependencies() {
     ;;
   esac
 
-  echo "[INFO]: All dependencies are correct."
+  echo "[INFO]: Checking dependecies... Done"
 }
 
 # Delete local repository.
@@ -408,32 +408,39 @@ function create_local_repository() {
   # BUG: Must learn how to create PR from terminal or API
   block_push_master
 
-  echo "[INFO]: Local repository has been created..."
+  echo "[INFO]: Creating local repository... Done"
 }
 
 # Create remote repository in GitHub and push local content.
 function create_remote_repository() {
   if "$PUSH"
   then
-    echo "[INFO]: Checking if remote repository already exists..."
+    echo "[INFO]: Creating remote repository..."
+    # Repo does not exists in remoet
+    echo "[INFO]:   Checking if remote repository already exists..."
     response=$(github_api GET "" "$GH_GET_REPO_URL/${REPO_OWNER}/${REPO_NAME}")
     status_code=$(echo "$response" | tail -c 4)
     [[ "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository already exists..."
+    echo "[INFO]:   Checking if remote repository already exists... Done"
 
-    echo "[INFO]: Creating remote repository..."
+    # Create remote repository
+    echo "[INFO]:   Creating repository in remote server..."
     response=$(github_api POST "{\"name\":\"${REPO_NAME}\", \"private\": ${PRIVATE}}" "$GH_CREATE_REPO_URL")
     status_code=$(echo "$response" | tail -c 4)
     [[ ! "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository couldn't be created..."
+    echo "[INFO]:   Creating repository in remote server... Done"
 
-    echo "[INFO]: Remote repository created. Pushing initial content into repository..."
-    git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}"
-    git push --set-upstream origin master
+    # Push content
+    echo "[INFO]:   Pushing initial content into repository..."
+    git remote add origin "https://github.com/${REPO_OWNER}/${REPO_NAME}" 1>/dev/null
+    git push --quiet --set-upstream origin master
+    echo "[INFO]:   Pushing initial content into repository... Done"
   fi
 }
 
 # Main functiona. Creates a repository skeleton taking certain parameters and configuration options.
 function run_repo_skeleton() {
-  echo "[INFO]: Starting execution..."
+  echo "[INFO]: Creating repository skeleton..."
   # Filter parameters
   get_parameters "$@"
   # See if all dependencies are installed
@@ -441,6 +448,8 @@ function run_repo_skeleton() {
 
   create_local_repository
   create_remote_repository
+
+  echo "[INFO]: Creating repository skeleton... Done"
 }
 
 run_repo_skeleton "$@"
