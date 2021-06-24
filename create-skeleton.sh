@@ -7,7 +7,7 @@ source ./sources/utils.sh
 #Script Name    :create-skeleton.sh
 #Description    :create the skeleton of scripts with different configuration
 #                options
-#Args           : See help for more information.
+#Args           :See help for more information.
 #Author         :Pablo Acereda
 #Email          :p.aceredag@gmail.com
 #################################################################################
@@ -170,12 +170,12 @@ function correct_parameters() {
     if $DEPENDABOT && [[ $(is_valid_interval "$DEPENDABOT_INTERVAL") -eq 1 ]]
     then
       DEPENDABOT_INTERVAL="daily"
-      echo "[WARNING]: Dependabot daily check-for-updates has been set, as none was specified.."
+      echo "[WARNING]: Dependabot daily check-for-updates has been set, as none was specified..."
     fi
     if [[ $(is_bool "$FORCE_PR") -eq 1 ]]
     then
       FORCE_PR=false
-      echo "[WARNING]: "
+      echo "[WARNING]: Not rorcing PR for contributions, as none was specified..."
     fi
   fi
 }
@@ -277,7 +277,9 @@ function get_parameters() {
 }
 
 function get_license() {
-  curl -L "$LICENSE_URL/$LICENSE_NAME.txt" > LICENSE
+  curl -s                                  \
+       -L "$LICENSE_URL/$LICENSE_NAME.txt" \
+       -o LICENSE
   sed -i                                        \
       -e "s/{{ year }}/$(date +"%Y")/g"         \
       -e "s/{{ organization }}/${REPO_OWNER}/g" \
@@ -327,41 +329,48 @@ function block_push_master() {
     mkdir "$DEST_HOOKS"
     cp "$PATH_HOOKS/pre-push" "$DEST_HOOKS"
     # Add changes to git
-    git add "$DEST_HOOKS/pre-push"
-    git commit -m 'Avoid pushing changes to master branch'
-    git config --local core.hooksPath "$DEST_HOOKS"
+    git add "$DEST_HOOKS/pre-push" 1>/dev/null
+    git commit --quiet -m 'Avoid pushing changes to master branch'
+    git config --local core.hooksPath "$DEST_HOOKS" 1>/dev/null
   fi
 }
 
 function activate_dependabot() {
   if "$DEPENDABOT"
   then
-    echo "[INFO]: Activate dependency control with Dependabot..."
+    echo "[INFO]:   Activating dependency control with Dependabot..."
     # Create folder
     mkdir "$DEST_DEPENDABOT"
+
     # Create file
     cp "$PATH_DEPENDABOT/dependabot.yml.sample" "$DEST_DEPENDABOT/dependabot.yml"
+    # Add technology specify dependency control to Dependabot configuration file
     case ${TECHNOLOGY,,} in
       rust)
-        echo "[INFO] Adding Cargo (Rust) to Dependabot for dependency control..."
+        echo "[INFO]:     Adding Cargo (Rust) to Dependabot for dependency control..."
         cat "$PATH_DEPENDABOT/dependabot-rust.yml.sample" >> "$DEST_DEPENDABOT/dependabot.yml"
+        echo "[INFO]:     Adding Cargo (Rust) to Dependabot for dependency control... Done"
       ;;
     esac
     sed -i -e "s/{{ interval }}/\"${DEPENDABOT_INTERVAL}\"/g" "$DEST_DEPENDABOT/dependabot.yml"
     # Add changes to git
-    git add "$DEST_DEPENDABOT"
-    git commit -m "Add dependency control using Dependabot"
+    git add "$DEST_DEPENDABOT" 1>/dev/null
+    git commit --quiet -m 'Add dependency control using Dependabot'
+
+    echo "[INFO]:   Activating dependency control with Dependabot... Done"
   fi
 }
 
 function project_skeleton() {
   case ${TECHNOLOGY,,} in
     rust)
+      echo '[INFO]:   Creating Rust Skeleton...'
       cargo init -q
-      echo "[INFO]: Rust skeleton has been created."
-      echo "[WARNING]: You should take a look at the Cargo.toml file to see that the information in it is correct."
-      git add .
-      git commit -m "Rust skeleton"
+      echo "[INFO]:     Change project information in Cargo.toml file..."
+      # Adding changes
+      git add . 1>/dev/null
+      git commit --quiet -m 'Rust skeleton'
+      echo '[INFO]:   Creating Rust Skeleton... Done'
     ;;
   esac
 }
@@ -387,9 +396,9 @@ function create_local_repository() {
   get_license
 
   # Initialize local repository
-  git init
-  git add README.org LICENSE
-  git commit -m "First commit"
+  git init --quiet
+  git add README.org LICENSE 1>/dev/null
+  git commit --quiet -m 'First commit'
 
   # Define skeleton for specific language/project
   project_skeleton
