@@ -322,7 +322,6 @@ function rollback_local_repo() {
       echo "[WARNING]: You might want to activate -r/--no-push-remote flag to preserve changes."
       cd ..
       rm -Rf "$REPO_NAME"
-      return 1
 }
 
 function block_push_master() {
@@ -423,16 +422,14 @@ function create_remote_repository() {
     echo "[INFO]: Creating remote repository..."
     # Repo does not exists in remoet
     echo "[INFO]:   Checking if remote repository already exists..."
-    response=$(github_api GET "" "$GH_GET_REPO_URL/${REPO_OWNER}/${REPO_NAME}")
-    status_code=$(echo "$response" | tail -c 4)
-    [[ "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository already exists..."
+    repo_exists $GH_GET_REPO_URL $REPO_OWNER $REPO_NAME &&
+      rollback_local_repo "The repository already exists..." && return 1
     echo "[INFO]:   Checking if remote repository already exists... Done"
 
     # Create remote repository
     echo "[INFO]:   Creating repository in remote server..."
-    response=$(github_api POST "{\"name\":\"${REPO_NAME}\", \"private\": ${PRIVATE}}" "$GH_CREATE_REPO_URL")
-    status_code=$(echo "$response" | tail -c 4)
-    [[ ! "$status_code" =~ ^20[0-9]$ ]] && rollback_local_repo "The repository couldn't be created..."
+    create_repo $REPO_NAME $PRIVATE $GH_CREATE_REPO_URL &&
+      rollback_local_repo "The repository couldn't be created..." && return 1
     echo "[INFO]:   Creating repository in remote server... Done"
 
     # Push content

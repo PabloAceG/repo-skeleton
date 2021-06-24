@@ -11,6 +11,24 @@ function github_api() {
        "$3"
 }
 
+function repo_exists() {
+  if [ "$#" -eq 3 ]
+  then
+    response=$(github_api GET "" "$1/$2/$3")
+    status_code=$(echo "$response" | tail -c 4)
+    [[ "$status_code" =~ ^20[0-9]$ ]]
+  fi
+}
+
+function create_repo() {
+  if [ "$#" -eq 3 ]
+  then
+    response=$(github_api POST "{\"name\":\"$1\", \"private\": $2}" "$3")
+    status_code=$(echo "$response" | tail -c 4)
+    [[ ! "$status_code" =~ ^20[0-9]$ ]]
+  fi
+}
+
 # Check for a package being installed in the system.
 function is_installed() {
   # Check parameters
